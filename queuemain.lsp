@@ -103,7 +103,7 @@
         (if (and (/= linha "") (setq pos (vl-string-search "=" linha)))
           (progn
             (setq chave (_strcase (substr linha 1 pos)))
-            (setq valor (substr linha (+ pos 2)))
+            (setq valor (_trim (substr linha (+ pos 2))))
             (setq cfg (cons (cons chave valor) cfg))
           )
         )
@@ -119,8 +119,23 @@
   (if a (cdr a) "")
 )
 
-(defun _cfg-bool (cfg key)
-  (= (_cfg-get cfg key) "1")
+(defun _cfg-bool (cfg key / val)
+  (setq val (_strcase (_trim (_cfg-get cfg key))))
+  (or (= val "1") (= val "TRUE") (= val "YES") (= val "SIM"))
+)
+
+;;; ----------------------------
+;;; Doc helpers
+;;; ----------------------------
+(defun _doc-open-p (doc / docs item isOpen)
+  (setq isOpen nil)
+  (setq docs (vla-get-Documents (vlax-get-acad-object)))
+  (vlax-for item docs
+    (if (= item doc)
+      (setq isOpen T)
+    )
+  )
+  isOpen
 )
 
 ;;; ----------------------------
@@ -252,9 +267,16 @@
           (setvar "FILEDIA" oldFileDia)
           (setvar "CMDDIA"  oldCmdDia)
 
-          (_log-line logArq "Fallback _.CLOSE executado (verifique se o desenho realmente fechou).")
-          ;; Não dá para garantir 100% pelo retorno do comando; assumimos OK aqui.
-          T
+          (if (_doc-open-p doc)
+            (progn
+              (_log-line logArq "ATENCAO: fallback _.CLOSE executado, mas o desenho ainda esta aberto.")
+              nil
+            )
+            (progn
+              (_log-line logArq "Fallback _.CLOSE executado e desenho fechado.")
+              T
+            )
+          )
         )
       )
     )
